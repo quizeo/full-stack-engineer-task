@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
 
 import { login, getCookie } from "../utils/auth.js";
 import { timeStamp } from "console";
@@ -32,13 +34,11 @@ export async function fetchTokens() {
     console.log("Response received with status:", response.status);
     console.log("Response type:", typeof response.data);
 
-    // If response is HTML, extract hidden inputs
     if (typeof response.data === "string" && response.data.includes("<input")) {
       console.log("HTML response detected, contains input elements");
       const html = response.data;
       const inputs: Record<string, string> = {};
 
-      // Regular expression to match input elements with id and value attributes
       const regex =
         /<input[^>]*?\sid=["']([^"']+)["'][^>]*?\svalue=["']([^"']*)["'][^>]*?>/g;
       let match;
@@ -70,8 +70,6 @@ export async function fetchTokens() {
 }
 
 function calculateCheckcode(tokens: any, timestamp: string): string {
-  // First create the same URL params object WITHOUT the checkcode
-  // This ensures parameters are encoded the same way
   const paramsForHash = new URLSearchParams({
     access_token: tokens.access_token,
     apiuser: tokens.apiuser,
@@ -82,7 +80,6 @@ function calculateCheckcode(tokens: any, timestamp: string): string {
     userId: tokens.userId,
   });
 
-  // Convert to string to get the exact same format as will be sent
   const paramString = paramsForHash.toString();
 
   console.log("Parameter string for hash calculation:", paramString);
@@ -100,10 +97,8 @@ function calculateCheckcode(tokens: any, timestamp: string): string {
 }
 
 export async function fetchCurrentUser(tokens: any) {
-  // Generate a fresh timestamp for each request
   const currentTimestamp = Math.floor(Date.now() / 1000).toString();
 
-  // Calculate the checkcode for this specific request
   const checkcode = calculateCheckcode(tokens, currentTimestamp);
 
   console.log("Using timestamp:", currentTimestamp);
@@ -174,7 +169,26 @@ export async function getUserData(req: Request, res: Response): Promise<void> {
 
     const currentUser = await fetchCurrentUser(tokens);
 
+    // Send the JSON response to the client
     res.json({ users, currentUser });
+
+    // After sending the response, also save the data to a file
+    try {
+      const userData = {
+        users,
+        currentUser,
+        timestamp: new Date().toISOString(),
+      };
+
+      const filePath = path.resolve(process.cwd(), "users.json");
+
+      await fs.writeFile(filePath, JSON.stringify(userData, null, 2), "utf8");
+
+      console.log(`User data saved to ${filePath}`);
+    } catch (writeErr) {
+      // Just log the error but don't let it affect the API response
+      console.error("Error saving users.json:", writeErr);
+    }
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Unknown error" });
   }
