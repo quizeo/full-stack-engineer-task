@@ -1,4 +1,3 @@
-// utils/auth.js
 import * as cheerio from "cheerio";
 import axios from "axios";
 
@@ -28,7 +27,7 @@ export async function login() {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    maxRedirects: 0, // Prevent automatic redirects to handle manually
+    maxRedirects: 0,
     validateStatus: (status) => {
       return status === 302; // Accept 302 redirect as success
     },
