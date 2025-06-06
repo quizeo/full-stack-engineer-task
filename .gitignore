@@ -43,3 +43,7 @@ coverage/
 
 # dotenv environment variables file
 .env
+# Backup files
+index(copy).ts
+*copy.ts
+*copy*.ts
